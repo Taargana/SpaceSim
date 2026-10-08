@@ -11,6 +11,13 @@ internal static class TestWiring
         return cable;
     }
 
+    public static Cable LinkPort(RouterPort port, NetInterface other, SimClock clock, double quality = 1.0, double length = 0.0)
+    {
+        var cable = Link(port, other, quality, length);
+        port.Router.OnConnected(port, clock.Tick);
+        return cable;
+    }
+
     /// <summary>Advance one tick, then let the cables deliver what has arrived.</summary>
     public static void Pump(SimClock clock, params Cable[] cables)
     {
