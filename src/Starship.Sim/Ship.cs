@@ -61,6 +61,7 @@ public sealed class Ship
         foreach (var device in _devices)
             if (device.Powered) device.Process(Clock);
 
+        foreach (var device in _devices) device.RefreshDemand(Clock);   // also for switched-off devices, so a brownout can recover
         PowerDistribution.Apply(_devices.OfType<PowerPlant>().FirstOrDefault(), _devices);
 
         var force = System.Numerics.Vector3.Zero;
@@ -90,6 +91,8 @@ public sealed class Ship
     {
         var a = oldCable.A ?? throw new InvalidOperationException("Cable is not connected");
         var b = oldCable.B!;
+        if (newCable.A != null)
+            throw new InvalidOperationException("Replacement cable is already attached");
         Disconnect(oldCable);
         return Connect(a, b, newCable);
     }

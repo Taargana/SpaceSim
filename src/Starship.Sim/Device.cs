@@ -47,6 +47,9 @@ public abstract class Device
 
     public virtual void Process(SimClock clock) { }
 
+    /// <summary>Recompute <see cref="PowerDemand"/> from internal state; runs even when the device is switched off.</summary>
+    public virtual void RefreshDemand(SimClock clock) { }
+
     public abstract TelemetryReport Report();
 
     protected int NextSeq() => ++_seq;

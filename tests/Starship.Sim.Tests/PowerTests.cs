@@ -65,6 +65,34 @@ public class PowerTests
     }
 
     [Fact]
+    public void Offline_plant_gives_zero_ratio_even_with_zero_demand()
+    {
+        var plant = new PowerPlant(new Address(20), new Address(1), 100) { Online = false };
+        var a = Consumer(10, 0);
+        PowerDistribution.Apply(plant, new Device[] { plant, a });
+        Assert.Equal(0.0, a.PowerSupplyRatio);
+        Assert.False(a.Powered);
+    }
+
+    [Fact]
+    public void Missing_plant_gives_zero_ratio_even_with_zero_demand()
+    {
+        var a = Consumer(10, 0);
+        PowerDistribution.Apply(null, new Device[] { a });
+        Assert.Equal(0.0, a.PowerSupplyRatio);
+        Assert.False(a.Powered);
+    }
+
+    [Fact]
+    public void Available_power_with_zero_demand_gives_full_ratio()
+    {
+        var plant = new PowerPlant(new Address(20), new Address(1), 100);
+        var a = Consumer(10, 0);
+        PowerDistribution.Apply(plant, new Device[] { plant, a });
+        Assert.Equal(1.0, a.PowerSupplyRatio);
+    }
+
+    [Fact]
     public void The_plant_itself_stays_powered()
     {
         var plant = new PowerPlant(new Address(20), new Address(1), 100) { Online = false };

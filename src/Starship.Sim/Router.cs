@@ -71,6 +71,15 @@ public sealed class Router
         if (port.Cable == null)
             throw new InvalidOperationException("Port is not connected");
         var peer = port.Cable.Peer(port).Owner;
+        if (address == _owner.Address)
+            throw new InvalidOperationException($"Address {address} belongs to the router owner");
+        foreach (var p in _ports)
+            if (p.Cable != null && p.Cable.Peer(p).Owner is var other && other != peer && other.Address == address)
+                throw new InvalidOperationException($"Address {address} is already used by a device connected to the router");
+
+        var old = peer.Address;
+        if (old != address && _explicitRoutes.Remove(old, out var routes))
+            _explicitRoutes[address] = routes;
         peer.Address = address;
         foreach (var p in _ports)
             if (p.Cable != null && p.Cable.Peer(p).Owner == peer) p.BoundAddress = address;

@@ -67,8 +67,15 @@ public sealed class BoardComputer : Device
     {
         if (!IsEmitTick(clock, SimConstants.ControlPeriod)) return;
         if (clock.Tick - _throttleTick > SimConstants.ControlTimeoutTicks) return;
-        var propulsion = _status.FirstOrDefault(kv => kv.Value.Report.Kind == DeviceKind.Propulsion);
-        if (propulsion.Value == null) return;
+        // The freshest non-stale propulsion wins (lowest address on ties), so a re-addressed thruster is followed.
+        var candidates = _status
+            .Where(kv => kv.Value.Report.Kind == DeviceKind.Propulsion && !IsStale(kv.Key, clock))
+            .ToList();
+        if (candidates.Count == 0) return;
+        var propulsion = candidates
+            .OrderByDescending(kv => kv.Value.LastTelemetryTick)
+            .ThenBy(kv => kv.Key.Value)
+            .First();
 
         var stickFresh = clock.Tick - _stickTick <= SimConstants.ControlTimeoutTicks;
         var payload = new[]

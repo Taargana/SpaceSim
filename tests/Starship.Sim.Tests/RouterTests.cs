@@ -235,6 +235,43 @@ public class RouterTests
     }
 
     [Fact]
+    public void AssignAddress_rejects_the_address_of_the_router_owner()
+    {
+        var (clock, _, router) = Make(RouterModels.Advanced);
+        TestWiring.LinkPort(router.Ports[0], new TestDevice(10).AddInterface("x"), clock);
+        Assert.Throws<InvalidOperationException>(() => router.AssignAddress(router.Ports[0], new Address(1)));
+    }
+
+    [Fact]
+    public void AssignAddress_rejects_the_address_of_another_connected_device()
+    {
+        var (clock, _, router) = Make(RouterModels.Advanced);
+        var dev = new TestDevice(10);
+        TestWiring.LinkPort(router.Ports[0], dev.AddInterface("x"), clock);
+        TestWiring.LinkPort(router.Ports[1], new TestDevice(11).AddInterface("x"), clock);
+        Assert.Throws<InvalidOperationException>(() => router.AssignAddress(router.Ports[0], new Address(11)));
+        Assert.Equal(10, dev.Address.Value);
+        Assert.Equal(new Address(10), router.Ports[0].BoundAddress);
+    }
+
+    [Fact]
+    public void AssignAddress_rekeys_explicit_routes_to_the_new_address()
+    {
+        var (clock, _, router) = Make(RouterModels.Advanced);
+        var ia = new TestDevice(10).AddInterface("x");
+        var ib = new TestDevice(11).AddInterface("x");
+        var ca = TestWiring.LinkPort(router.Ports[0], ia, clock);
+        var cb = TestWiring.LinkPort(router.Ports[1], ib, clock);
+        router.SetRoute(new Address(10), router.Ports[1]);      // deliberately redirected to port 1
+        router.AssignAddress(router.Ports[0], new Address(77));
+        router.Submit(Pkt(1, 77));
+        router.Step(clock);
+        TestWiring.Pump(clock, ca, cb);
+        Assert.Single(ib.Inbox);
+        Assert.Empty(ia.Inbox);
+    }
+
+    [Fact]
     public void DiscardTraffic_clears_everything_pending()
     {
         var (clock, _, router) = Make(RouterModels.Advanced);

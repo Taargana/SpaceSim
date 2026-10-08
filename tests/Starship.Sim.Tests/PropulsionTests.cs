@@ -152,4 +152,28 @@ public class PropulsionTests
         p.Process(clock);
         Assert.Equal(new Vector3(0, 0, 1000), p.Output(clock).Force);
     }
+
+    [Fact]
+    public void RefreshDemand_falls_back_to_idle_after_the_hold_expires_without_Process()
+    {
+        var clock = new SimClock(1);
+        var p = Make();
+        Feed(p, Setpoint(1, 1, 0, 0, 0), clock);
+        Assert.Equal(220, p.PowerDemand);
+        for (int i = 0; i < SimConstants.SetpointHoldTicks + 1; i++) clock.Advance();
+        p.RefreshDemand(clock);
+        Assert.Equal(20, p.PowerDemand);
+    }
+
+    [Fact]
+    public void Telemetry_reports_zero_load_once_the_setpoint_has_expired()
+    {
+        var clock = new SimClock(1);
+        var p = Make();
+        Feed(p, Setpoint(1, 1, 0, 0, 0), clock);
+        Assert.Equal(1.0, p.Report().Load, 9);
+        for (int i = 0; i < SimConstants.SetpointHoldTicks + 1; i++) clock.Advance();
+        p.RefreshDemand(clock);
+        Assert.Equal(0.0, p.Report().Load, 9);
+    }
 }

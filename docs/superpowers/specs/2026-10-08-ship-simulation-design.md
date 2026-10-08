@@ -59,7 +59,7 @@ Effets sur chaque paquet en transit: latence en ticks, probabilité de perte, pr
 Même abstraction `Cable` prévue pour l'énergie (type `Power`) aux jalons suivants.
 
 ### 4.3 Topologie éditable
-`Ship.Connect(ifaceA, ifaceB, cable)`, `Disconnect(...)`, `Replace(cable)`, utilisables pendant la simulation. Une nouvelle route est testée par heartbeat avant d'être marquée `Up`.
+`Ship.Connect(ifaceA, ifaceB, cable)`, `Disconnect(...)`, `Replace(cable)`, utilisables pendant la simulation. Une route nouvellement connectée est considérée `Up` pendant un délai de grâce égal au timeout de heartbeat (30 ticks), puis suit les heartbeats reçus.
 
 ### 4.4 Routeur et gammes
 `RouterModel` (données) décrit:

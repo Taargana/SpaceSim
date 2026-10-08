@@ -88,6 +88,21 @@ public class ShipTopologyTests
     }
 
     [Fact]
+    public void Replace_with_an_already_attached_cable_throws_and_leaves_the_old_cable_connected()
+    {
+        var (ship, router) = Make(RouterModels.Advanced);
+        var iface = ship.Add(new TestDevice(10)).AddInterface("out");
+        var other = ship.Add(new TestDevice(11)).AddInterface("out");
+        var old = ship.Connect(router.Ports[0], iface, new Cable("old", 1, 1));
+        var used = ship.Connect(router.Ports[1], other, new Cable("used", 1, 1));
+        Assert.Throws<InvalidOperationException>(() => ship.Replace(old, used));
+        Assert.Same(old, iface.Cable);
+        Assert.NotNull(old.A);
+        Assert.Contains(old, ship.Cables);
+        Assert.Equal(new Address(10), router.Ports[0].BoundAddress);
+    }
+
+    [Fact]
     public void Duplicate_addresses_are_refused()
     {
         var (ship, _) = Make(RouterModels.Basic);

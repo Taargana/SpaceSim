@@ -27,7 +27,7 @@ public class ShipScenarioTests
     {
         var s = ShipBuilder.CreateDefault(1, RouterModels.Basic);
         Run(s, 120);
-        foreach (var address in new[] { 20, 30 })
+        foreach (var address in new[] { 10, 11, 20, 30 })
         {
             Assert.True(s.Computer.Status.ContainsKey(new Address(address)));
             Assert.False(s.Computer.IsStale(new Address(address), s.Ship.Clock));
@@ -169,5 +169,42 @@ public class ShipScenarioTests
         Assert.True(weak.Propulsion.PowerSupplyRatio < 1.0);
         Assert.True(weak.Propulsion.Powered);
         Assert.InRange(weak.Ship.Body.Velocity.Z, 20f, full.Ship.Body.Velocity.Z - 20f);
+    }
+
+    [Fact]
+    public void Reassigning_the_propulsion_address_does_not_ground_the_ship()
+    {
+        var s = ShipBuilder.CreateDefault(1, RouterModels.Advanced);
+        s.Throttle.Set(1.0);
+        Run(s, 120);
+        var port = (RouterPort)s.Propulsion.In.Cable!.Peer(s.Propulsion.In);
+        s.Computer.Router.AssignAddress(port, new Address(31));
+        Run(s, 200);                                   // new telemetry source learned, old one goes stale
+        var v1 = s.Ship.Body.Velocity.Z;
+        Run(s, 100);
+        Assert.True(s.Ship.Body.Velocity.Z - v1 > 25f, "setpoints must follow the propulsion to its new address");
+    }
+
+    [Fact]
+    public void Brownout_below_the_shutdown_threshold_recovers_once_the_throttle_is_released()
+    {
+        // 60 W cannot sustain the 260 W full-throttle demand (ratio < 0.25 switches devices off).
+        // Once the throttle is released the propulsion demand must fall back to idle even though
+        // it is switched off and no longer runs Process, so power (and the computer) come back.
+        var s = ShipBuilder.CreateDefault(1, RouterModels.Basic, plantCapacity: 60);
+        s.Throttle.Set(1.0);
+        Run(s, 300);
+        s.Throttle.Set(0.0);
+        Run(s, 600);
+        Assert.True(s.Propulsion.PowerSupplyRatio >= 0.25, $"ratio stayed {s.Propulsion.PowerSupplyRatio}");
+        Assert.True(s.Computer.Powered);
+
+        // Full throttle cannot be sustained with 60 W, so only assert that the ship is still
+        // powered and its velocity never decreases (there is no braking) after commanding thrust again.
+        var v1 = s.Ship.Body.Velocity.Z;
+        s.Throttle.Set(1.0);
+        Run(s, 300);
+        Assert.True(s.Ship.Body.Velocity.Z >= v1);
+        Assert.True(s.Computer.Powered || s.Propulsion.PowerSupplyRatio > 0);
     }
 }

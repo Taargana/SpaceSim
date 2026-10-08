@@ -8,6 +8,7 @@ public sealed class PropulsionSystem : Device
     private const double DemandPerThrottle = 200;
 
     private double _throttle;
+    private double _effectiveThrottle;            // throttle once the setpoint hold is taken into account
     private Vector3 _stick;                       // x pitch, y yaw, z roll, each in [-1, 1]
     private long _setpointTick = long.MinValue / 2;
     private int _lastSeq;
@@ -29,7 +30,13 @@ public sealed class PropulsionSystem : Device
     {
         foreach (var iface in Interfaces)
             while (iface.Inbox.TryDequeue(out var packet)) Handle(packet, clock);
-        PowerDemand = BaseDemand + DemandPerThrottle * (HasFreshSetpoint(clock) ? _throttle : 0.0);
+        RefreshDemand(clock);
+    }
+
+    public override void RefreshDemand(SimClock clock)
+    {
+        _effectiveThrottle = HasFreshSetpoint(clock) ? _throttle : 0.0;
+        PowerDemand = BaseDemand + DemandPerThrottle * _effectiveThrottle;
     }
 
     public (Vector3 Force, Vector3 Torque) Output(SimClock clock)
@@ -43,7 +50,7 @@ public sealed class PropulsionSystem : Device
 
     public override TelemetryReport Report()
     {
-        var throttle = _throttle;
+        var throttle = _effectiveThrottle;
         return new TelemetryReport(Kind, PowerDemand * PowerSupplyRatio, 20 + 80 * throttle, throttle, Health);
     }
 

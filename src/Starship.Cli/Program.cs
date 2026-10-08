@@ -9,8 +9,13 @@ var model = routerName switch
     "basic" => RouterModels.Basic,
     "intermediate" => RouterModels.Intermediate,
     "advanced" => RouterModels.Advanced,
-    _ => throw new ArgumentException($"Unknown router '{routerName}' (basic, intermediate, advanced)"),
+    _ => null,
 };
+if (model == null)
+{
+    Console.Error.WriteLine($"Unknown router '{routerName}'. Usage: --router basic|intermediate|advanced [--headless <ticks>]");
+    return 2;
+}
 var ship = ShipBuilder.CreateDefault(seed: 1, model, cableQuality: 0.9);
 
 var cables = ship.Cables.ToDictionary(kv => kv.Key, kv => kv.Value);
@@ -18,53 +23,67 @@ var cables = ship.Cables.ToDictionary(kv => kv.Key, kv => kv.Value);
 var headless = ArgValue("--headless");
 if (headless != null)
 {
+    if (!int.TryParse(headless, out var ticks) || ticks < 0)
+    {
+        Console.Error.WriteLine($"Invalid --headless value '{headless}': expected a non-negative number of ticks.");
+        return 2;
+    }
     ship.Throttle.Set(0.5);
-    for (int i = 0; i < int.Parse(headless); i++) ship.Ship.Step();
+    for (int i = 0; i < ticks; i++) ship.Ship.Step();
     Console.WriteLine(Render(ship));
     return 0;
 }
 
+Console.CancelKeyPress += (_, _) => { try { Console.CursorVisible = true; } catch { } };
 Console.CursorVisible = false;
 Console.Clear();
 double throttle = 0, pitch = 0, roll = 0, yaw = 0;
 var timer = Stopwatch.StartNew();
 double last = 0, accumulator = 0;
 
-while (true)
+try
 {
-    while (Console.KeyAvailable)
+    while (true)
     {
-        switch (Console.ReadKey(true).Key)
+        while (Console.KeyAvailable)
         {
-            case ConsoleKey.W: throttle = Math.Min(1, throttle + 0.05); break;
-            case ConsoleKey.S: throttle = Math.Max(0, throttle - 0.05); break;
-            case ConsoleKey.UpArrow: pitch = Math.Min(1, pitch + 0.25); break;
-            case ConsoleKey.DownArrow: pitch = Math.Max(-1, pitch - 0.25); break;
-            case ConsoleKey.RightArrow: yaw = Math.Min(1, yaw + 0.25); break;
-            case ConsoleKey.LeftArrow: yaw = Math.Max(-1, yaw - 0.25); break;
-            case ConsoleKey.D: roll = Math.Min(1, roll + 0.25); break;
-            case ConsoleKey.A: roll = Math.Max(-1, roll - 0.25); break;
-            case ConsoleKey.Spacebar: pitch = roll = yaw = 0; break;
-            case ConsoleKey.X: cables["throttle"].Burn(); break;
-            case ConsoleKey.R: ReplaceBurntCables(); break;
-            case ConsoleKey.Q: Console.CursorVisible = true; Console.Clear(); return 0;
+            switch (Console.ReadKey(true).Key)
+            {
+                case ConsoleKey.W: throttle = Math.Min(1, throttle + 0.05); break;
+                case ConsoleKey.S: throttle = Math.Max(0, throttle - 0.05); break;
+                case ConsoleKey.UpArrow: pitch = Math.Min(1, pitch + 0.25); break;
+                case ConsoleKey.DownArrow: pitch = Math.Max(-1, pitch - 0.25); break;
+                case ConsoleKey.RightArrow: yaw = Math.Min(1, yaw + 0.25); break;
+                case ConsoleKey.LeftArrow: yaw = Math.Max(-1, yaw - 0.25); break;
+                case ConsoleKey.D: roll = Math.Min(1, roll + 0.25); break;
+                case ConsoleKey.A: roll = Math.Max(-1, roll - 0.25); break;
+                case ConsoleKey.Spacebar: pitch = roll = yaw = 0; break;
+                case ConsoleKey.X: cables["throttle"].Burn(); break;
+                case ConsoleKey.R: ReplaceBurntCables(); break;
+                case ConsoleKey.Q: Console.Clear(); return 0;
+            }
+            ship.Throttle.Set(throttle);
+            ship.Joystick.Set(pitch, roll, yaw);
         }
-        ship.Throttle.Set(throttle);
-        ship.Joystick.Set(pitch, roll, yaw);
-    }
 
-    var now = timer.Elapsed.TotalSeconds;
-    accumulator += now - last;
-    last = now;
-    while (accumulator >= SimClock.Dt)
-    {
-        ship.Ship.Step();
-        accumulator -= SimClock.Dt;
-    }
+        var now = timer.Elapsed.TotalSeconds;
+        accumulator += now - last;
+        last = now;
+        if (accumulator > 0.25) accumulator = 0.25;   // cap catch-up after a stall
+        while (accumulator >= SimClock.Dt)
+        {
+            ship.Ship.Step();
+            accumulator -= SimClock.Dt;
+        }
 
-    Console.SetCursorPosition(0, 0);
-    Console.Write(Render(ship));
-    Thread.Sleep(16);
+        Console.SetCursorPosition(0, 0);
+        Console.Write(Render(ship));
+        Thread.Sleep(16);
+    }
+}
+finally
+{
+    try { Console.CursorVisible = true; } catch { }
 }
 
 string? ArgValue(string name)
