@@ -40,6 +40,42 @@ public sealed class Ship
         return cable;
     }
 
+    /// <summary>Advance the whole ship by one fixed tick.</summary>
+    public void Step()
+    {
+        foreach (var device in _devices)
+        {
+            if (device.Powered) device.Emit(Clock);
+            else device.DiscardInbound();
+        }
+
+        foreach (var cable in _cables) cable.Step(Clock);
+
+        var computer = _devices.OfType<BoardComputer>().FirstOrDefault();
+        if (computer != null)
+        {
+            if (computer.Powered) computer.Router.Step(Clock);
+            else computer.Router.DiscardTraffic();
+        }
+
+        foreach (var device in _devices)
+            if (device.Powered) device.Process(Clock);
+
+        PowerDistribution.Apply(_devices.OfType<PowerPlant>().FirstOrDefault(), _devices);
+
+        var force = System.Numerics.Vector3.Zero;
+        var torque = System.Numerics.Vector3.Zero;
+        foreach (var propulsion in _devices.OfType<PropulsionSystem>())
+        {
+            var (f, t) = propulsion.Output(Clock);
+            force += f;
+            torque += t;
+        }
+        Body.Step(force, torque, SimClock.Dt);
+
+        Clock.Advance();
+    }
+
     public void Disconnect(Cable cable)
     {
         var a = cable.A ?? throw new InvalidOperationException("Cable is not connected");
