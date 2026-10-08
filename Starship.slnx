@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Starship.Cli/Starship.Cli.csproj" />
+    <Project Path="src/Starship.Sim/Starship.Sim.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Starship.Sim.Tests/Starship.Sim.Tests.csproj" />
+  </Folder>
+</Solution>

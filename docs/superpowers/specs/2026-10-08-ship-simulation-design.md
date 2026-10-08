@@ -49,8 +49,8 @@ Concepts principaux de `Starship.Sim`:
 
 ### 4.1 Adressage et paquets
 - Chaque appareil a une `Address`. Chaque `NetInterface` appartient à un appareil.
-- `Packet { Src, Dst, Kind, Payload, Seq, Checksum }`.
-- `Kind`: `Control`, `Telemetry`, `Heartbeat`.
+- `Packet { Src, Dst, Kind, Topic, Payload, Seq, Checksum }`.
+- `Kind`: `Control`, `Telemetry`, `Heartbeat`. `Topic` précise un paquet `Control`: `Throttle`, `Stick`, `Setpoint`.
 - Commandes (throttle, joystick) émises à cadence fixe. Télémétrie et heartbeat émis par chaque composant à sa propre cadence.
 
 ### 4.2 Câbles
@@ -74,6 +74,8 @@ Même abstraction `Cable` prévue pour l'énergie (type `Power`) aux jalons suiv
 | Avancé | 16+, tous génériques | Adressage libre par port, table complète, failover auto, plusieurs routes par destination |
 
 Un seul moteur de routage pour toutes les gammes: il lit les `Capabilities`. Ajouter une gamme = ajouter des données. Un port dédié refuse un appareil d'un autre type.
+
+Liaison de port: chaque port connecté est lié (`BoundAddress`) à l'adresse de l'appareil à l'autre bout du câble. Le routeur envoie vers `Dst` par les ports liés à `Dst` (plusieurs ports liés = routes redondantes, classées par index). `RoutingTable` permet de fixer des routes explicites (`SetRoute`) prioritaires sur ces routes automatiques. `ConfigurableAddressing` permet d'assigner l'adresse d'un appareil via son port (`AssignAddress`). Un port est considéré `Up` s'il a reçu un paquet valide de l'adresse liée depuis moins de 30 ticks.
 
 ## 5. Flux d'un tick
 
